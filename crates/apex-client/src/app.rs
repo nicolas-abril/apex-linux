@@ -2281,6 +2281,29 @@ impl Acme {
         self.term_under_pointer.filter(|_| self.app_active)
     }
 
+    /// The keymap's context: `Term` while the keys go to a terminal (no
+    /// overlay has them), where off the Mac control and a letter are the
+    /// shell's (`shell::linux_bindings`).
+    pub fn key_context(&self) -> gpui::KeyContext {
+        let mut c = gpui::KeyContext::new_with_defaults();
+        c.add("Apex");
+        let overlay = self.overview.is_some()
+            || self.switcher.is_some()
+            || self.finder.is_some()
+            || self.quick.is_some()
+            || self.url_edit.is_some()
+            || self.tag_edit.is_some()
+            || self.picker.is_some()
+            || self.cwd_picker.is_some()
+            || self.session_edit.is_some()
+            || self.commands.is_some()
+            || self.selector.is_some();
+        if !overlay && self.key_term().is_some() {
+            c.add("Term");
+        }
+        c
+    }
+
     /// The window the user is in: the one under the pointer, which has
     /// the keyboard, while this window is in front.
     fn active_window(&self) -> Option<WindowId> {
@@ -5080,9 +5103,14 @@ impl Acme {
             Target::Term(_, t) => {
                 // the shell's prompt marks (OSC 133): ⌘↑ ⌘↓ from prompt to
                 // prompt, ⌘⇧C the last command's output
-                if m.platform && !m.shift && (ks.key == "up" || ks.key == "down") {
+                // (off the Mac: ctrl-shift-↑ ↓, and ctrl-alt-shift-C, as
+                // ctrl-shift-C is the copy and ctrl-shift-V the paste)
+                let mac = cfg!(target_os = "macos");
+                let jump = if mac { m.platform && !m.shift } else { m.control && m.shift && !m.alt };
+                let last = if mac { m.platform && m.shift } else { m.control && m.shift && m.alt };
+                if jump && (ks.key == "up" || ks.key == "down") {
                     self.term_jump(t, ks.key == "up");
-                } else if m.platform && m.shift && ks.key == "c" {
+                } else if last && ks.key == "c" {
                     self.term_copy_last(t, cx);
                 } else if m.platform && ks.key == "v" {
                     if let Some(text) = cx.read_from_clipboard().and_then(|c| c.text()) {

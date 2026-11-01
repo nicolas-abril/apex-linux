@@ -204,6 +204,15 @@ impl LineEdit {
     /// a word, command: to the start) and forward, ^A ^E ^B ^F ^D ^H ^U
     /// ^W ^K, and a character typed.
     pub fn key(&mut self, key: &str, ch: Option<&str>, mods: &gpui::Modifiers) -> Edited {
+        // off the Mac, control and an arrow or backspace go by words, as
+        // option does on the Mac
+        let linux;
+        let mods = if !cfg!(target_os = "macos") && mods.control && matches!(key, "left" | "right" | "backspace") {
+            linux = gpui::Modifiers { control: false, alt: true, ..*mods };
+            &linux
+        } else {
+            mods
+        };
         let ext = mods.shift;
         if mods.control {
             return match key {

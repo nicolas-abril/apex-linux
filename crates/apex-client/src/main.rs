@@ -143,6 +143,7 @@ impl Render for Acme {
             .flex()
             .flex_col()
             .track_focus(&self.focus)
+            .key_context(self.key_context())
             .on_action(cx.listener(|this, _: &shell::Undo, window, cx| this.menu_edit("undo", window, cx)))
             .on_action(cx.listener(|this, _: &shell::Redo, window, cx| this.menu_edit("redo", window, cx)))
             .on_action(cx.listener(|this, _: &shell::Cut, window, cx| this.menu_edit("cut", window, cx)))

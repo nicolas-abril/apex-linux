@@ -259,6 +259,84 @@ pub fn menus() -> Vec<Menu> {
 }
 
 pub fn bindings() -> Vec<KeyBinding> {
+    if cfg!(target_os = "macos") {
+        mac_bindings()
+    } else {
+        linux_bindings()
+    }
+}
+
+/// Off the Mac: control where the Mac has command, and the usual Linux
+/// keys where the Mac's have no match (F11, alt-arrows, ctrl-page up and
+/// down). Over a terminal, control or alt and a letter (or an arrow) are
+/// the shell's -- ^C interrupts, ^R searches -- so those bindings hold
+/// only off a terminal (`!Term`, the root's context, `Acme::key_context`),
+/// and the terminal's own are ctrl-shift-C and ctrl-shift-V.
+fn linux_bindings() -> Vec<KeyBinding> {
+    // off a terminal only: over one the key goes to the shell
+    const T: Option<&str> = Some("!Term");
+    vec![
+        KeyBinding::new("ctrl-q", Quit, T),
+        KeyBinding::new("ctrl-n", NewFile, T),
+        KeyBinding::new("ctrl-shift-n", NewWin, None),
+        KeyBinding::new("ctrl-alt-n", NewTerm, None),
+        KeyBinding::new("ctrl-o", OpenPath, T),
+        KeyBinding::new("ctrl-s", Put, T),
+        KeyBinding::new("ctrl-t", NewTab, T),
+        KeyBinding::new("ctrl-w", Del, T),
+        KeyBinding::new("ctrl-shift-w", CloseTab, None),
+        KeyBinding::new("ctrl-shift-k", PreviousSession, None),
+        KeyBinding::new("ctrl-j", NextNotification, T),
+        KeyBinding::new("ctrl-f", Find, T),
+        KeyBinding::new("ctrl-g", FindNext, T),
+        KeyBinding::new("f3", FindNext, None),
+        KeyBinding::new("ctrl-shift-g", FindPrevious, None),
+        KeyBinding::new("shift-f3", FindPrevious, None),
+        KeyBinding::new("ctrl-1", Tab1, None),
+        KeyBinding::new("ctrl-2", Tab2, None),
+        KeyBinding::new("ctrl-3", Tab3, None),
+        KeyBinding::new("ctrl-4", Tab4, None),
+        KeyBinding::new("ctrl-5", Tab5, None),
+        KeyBinding::new("ctrl-6", Tab6, None),
+        KeyBinding::new("ctrl-7", Tab7, None),
+        KeyBinding::new("ctrl-8", Tab8, None),
+        KeyBinding::new("ctrl-9", Tab9, None),
+        KeyBinding::new("ctrl-pageup", PrevTab, None),
+        KeyBinding::new("ctrl-pagedown", NextTab, None),
+        KeyBinding::new("ctrl-b", ToggleSidebar, T),
+        KeyBinding::new("ctrl-shift-m", StashWindow, None),
+        KeyBinding::new("ctrl-=", FontBigger, None),
+        KeyBinding::new("ctrl-+", FontBigger, None),
+        KeyBinding::new("ctrl-shift-=", FontBigger, None),
+        KeyBinding::new("ctrl--", FontSmaller, None),
+        KeyBinding::new("ctrl-0", FontActual, None),
+        KeyBinding::new("ctrl-shift-\\", ShowOverview, None),
+        KeyBinding::new("ctrl-|", ShowOverview, None),
+        KeyBinding::new("ctrl-'", ShowOverview, None),
+        KeyBinding::new("ctrl-,", Profile, None),
+        KeyBinding::new("ctrl-r", Get, T),
+        KeyBinding::new("ctrl-shift-r", Reconnect, None),
+        KeyBinding::new("ctrl-p", Goto, T),
+        KeyBinding::new("ctrl-shift-o", GotoAll, None),
+        KeyBinding::new("ctrl-shift-p", Commands, None),
+        KeyBinding::new("alt-left", NavBack, T),
+        KeyBinding::new("alt-right", NavFwd, T),
+        KeyBinding::new("f11", ToggleFullScreen, None),
+        KeyBinding::new("ctrl-z", Undo, T),
+        KeyBinding::new("ctrl-shift-z", Redo, None),
+        KeyBinding::new("ctrl-y", Redo, T),
+        KeyBinding::new("ctrl-x", Cut, T),
+        KeyBinding::new("ctrl-c", Copy, T),
+        KeyBinding::new("ctrl-v", Paste, T),
+        // a terminal's copy and paste, and anywhere else too
+        KeyBinding::new("ctrl-shift-c", Copy, None),
+        KeyBinding::new("ctrl-shift-v", Paste, None),
+        KeyBinding::new("shift-insert", Paste, None),
+        KeyBinding::new("ctrl-a", SelectAll, T),
+    ]
+}
+
+fn mac_bindings() -> Vec<KeyBinding> {
     vec![
         KeyBinding::new("cmd-q", Quit, None),
         KeyBinding::new("cmd-h", HideApp, None),
