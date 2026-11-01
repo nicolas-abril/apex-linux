@@ -4,6 +4,7 @@
 
 use gpui::{Pixels, Point, Window};
 
+#[cfg(target_os = "macos")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct CGPoint {
@@ -27,6 +28,7 @@ struct CGRect {
     size: CGSize,
 }
 
+#[cfg(target_os = "macos")]
 #[link(name = "CoreGraphics", kind = "framework")]
 extern "C" {
     fn CGWarpMouseCursorPosition(p: CGPoint) -> i32;
@@ -34,6 +36,7 @@ extern "C" {
 }
 
 /// Put the pointer at `p`, a point in this window's coordinates.
+#[cfg(target_os = "macos")]
 pub fn move_to(window: &Window, p: Point<Pixels>) {
     let p = screen_point(window, p);
     // SAFETY: plain CoreGraphics calls with a by-value point.
@@ -96,16 +99,18 @@ fn screen_point(window: &Window, p: Point<Pixels>) -> CGPoint {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
-fn screen_point(window: &Window, p: Point<Pixels>) -> CGPoint {
-    let b = window.bounds();
-    CGPoint {
-        x: f32::from(b.origin.x + p.x) as f64,
-        y: f32::from(b.origin.y + p.y) as f64,
-    }
+/// Put the pointer at `p`, a point in this window's coordinates: on
+/// Linux, the X server's warp (gpui on Wayland has none to give).
+#[cfg(target_os = "linux")]
+pub fn move_to(window: &Window, p: Point<Pixels>) {
+    crate::xorg::warp(window, p);
 }
 
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+pub fn move_to(_window: &Window, _p: Point<Pixels>) {}
+
 /// The pointer shown, where it is: AppKit's typing-hides-it undone.
+#[cfg(target_os = "macos")]
 pub fn show() {
     use objc::{class, msg_send, sel, sel_impl};
     // SAFETY: a class method on NSCursor, on the main thread.
@@ -113,3 +118,6 @@ pub fn show() {
         let _: () = msg_send![class!(NSCursor), setHiddenUntilMouseMoves: false];
     }
 }
+
+#[cfg(not(target_os = "macos"))]
+pub fn show() {}

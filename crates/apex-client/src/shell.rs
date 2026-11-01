@@ -354,8 +354,21 @@ pub fn adopt_login_shell_environment() -> Vec<String> {
 // ---- which sessions to open ----------------------------------------------------------
 
 pub(crate) fn state_file() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/".into());
-    PathBuf::from(home).join("Library/Application Support/apex/last-sessions")
+    state_dir().join("last-sessions")
+}
+
+/// Where the app keeps what it remembers on this machine: Application
+/// Support on a Mac, `$XDG_STATE_HOME/apex` (else `~/.local/state/apex`)
+/// elsewhere.
+pub(crate) fn state_dir() -> PathBuf {
+    let home = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/".into()));
+    if cfg!(target_os = "macos") {
+        return home.join("Library/Application Support/apex");
+    }
+    match std::env::var("XDG_STATE_HOME").ok().filter(|d| d.starts_with('/')) {
+        Some(d) => PathBuf::from(d).join("apex"),
+        None => home.join(".local/state/apex"),
+    }
 }
 
 /// A window as remembered: its session, and where it was on screen.
@@ -473,6 +486,12 @@ pub fn reopen_refused() -> Option<String> {
 }
 
 /// `ApplePersistenceIgnoreState`, as AppKit reads it.
+#[cfg(not(target_os = "macos"))]
+fn persistence_ignored() -> bool {
+    false
+}
+
+#[cfg(target_os = "macos")]
 fn persistence_ignored() -> bool {
     use objc::runtime::{Object, BOOL, YES};
     use objc::{class, msg_send, sel, sel_impl};

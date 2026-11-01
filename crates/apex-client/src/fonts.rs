@@ -340,6 +340,10 @@ pub fn install(cx: &mut App) {
     if let Err(e) = cx.text_system().add_fonts(bundled) {
         eprintln!("apex-ui: the bundled fonts: {e}");
     }
+    #[cfg(not(target_os = "macos"))]
+    if let Err(e) = cx.text_system().add_fonts(vec![std::borrow::Cow::Borrowed(crate::text_element::SYMBOLS_LINUX)]) {
+        eprintln!("apex-ui: the symbols font: {e}");
+    }
     let dir = std::path::Path::new("/System/Applications/Utilities/Terminal.app/Contents/Resources/Fonts");
     let terminal: Vec<std::borrow::Cow<'static, [u8]>> = std::fs::read_dir(dir)
         .into_iter()

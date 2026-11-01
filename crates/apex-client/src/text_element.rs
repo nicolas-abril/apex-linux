@@ -600,6 +600,7 @@ pub const SYMBOLS: &str = "Symbols Nerd Font Mono";
 /// fallback is named to CoreText, which resolves the cascade list, and
 /// because gpui will not load a family with no `m` in it -- which a font
 /// of symbols has no business having.
+#[cfg(target_os = "macos")]
 pub fn install_symbols() {
     const TTF: &[u8] = include_bytes!("../assets/SymbolsNerdFontMono-Regular.ttf");
     // SAFETY: the bytes are static, so the provider needs no release
@@ -629,12 +630,25 @@ pub fn install_symbols() {
     }
 }
 
+/// Off the Mac the symbols font goes to gpui with the other bundled faces
+/// (`fonts::install`, `SYMBOLS_LINUX`).
+#[cfg(not(target_os = "macos"))]
+pub fn install_symbols() {}
+
+/// The symbols font as gpui's text system off the Mac (cosmic-text) will
+/// keep it: the same font with a blank `m` added, since it drops a face
+/// with no `m` (`linux/symbols-with-m.py` made it from the Mac's).
+#[cfg(not(target_os = "macos"))]
+pub const SYMBOLS_LINUX: &[u8] = include_bytes!("../assets/SymbolsNerdFontMono-Linux.ttf");
+
+#[cfg(target_os = "macos")]
 #[link(name = "CoreGraphics", kind = "framework")]
 extern "C" {
     fn CGDataProviderCreateWithData(info: *mut std::ffi::c_void, data: *const std::ffi::c_void, size: usize, release: *const std::ffi::c_void) -> *const std::ffi::c_void;
     fn CGFontCreateWithDataProvider(provider: *const std::ffi::c_void) -> *const std::ffi::c_void;
 }
 
+#[cfg(target_os = "macos")]
 #[link(name = "CoreText", kind = "framework")]
 extern "C" {
     /// Registers a font with CoreText for this process, as a font in an
@@ -642,6 +656,7 @@ extern "C" {
     fn CTFontManagerRegisterGraphicsFont(font: *const std::ffi::c_void, error: *mut *const std::ffi::c_void) -> bool;
 }
 
+#[cfg(target_os = "macos")]
 #[link(name = "CoreFoundation", kind = "framework")]
 extern "C" {
     fn CFRelease(v: *const std::ffi::c_void);
@@ -692,6 +707,12 @@ fn ink(window: &Window, fs: &FontSpec) -> (Pixels, Pixels) {
 /// `zeroslash`): asked of the font gpui draws the run with, whatever it
 /// is -- not of one font resolved once, which a font resolved anew (its
 /// fallbacks, a setting come from the server) would no longer match.
+#[cfg(not(target_os = "macos"))]
+fn zero_for(_window: &Window, _id: FontId) -> Option<(GlyphId, GlyphId)> {
+    None
+}
+
+#[cfg(target_os = "macos")]
 fn zero_for(window: &Window, id: FontId) -> Option<(GlyphId, GlyphId)> {
     if let Some(z) = ZEROS.with(|m| m.borrow().get(&id).copied()) {
         return z;

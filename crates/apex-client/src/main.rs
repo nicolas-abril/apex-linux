@@ -14,6 +14,10 @@
 mod app;
 mod attention;
 mod contrast;
+#[cfg(target_os = "macos")]
+mod cursor;
+#[cfg(not(target_os = "macos"))]
+#[path = "cursor_other.rs"]
 mod cursor;
 mod field;
 mod fonts;
@@ -47,6 +51,8 @@ mod text_element;
 mod theme;
 mod warp;
 mod web;
+#[cfg(target_os = "linux")]
+mod xorg;
 
 use gpui::{
     canvas, div, prelude::*, px, size, App, Bounds, Context, MouseButton, TitlebarOptions, Window,
@@ -739,7 +745,14 @@ fn main() {
     if std::env::var_os("APEX_DEBUG_ENV").is_some() {
         eprintln!("apex-ui: adopted from the login shell: {adopted:?}; PATH={}", std::env::var("PATH").unwrap_or_default());
     }
-    gpui_platform::application().run(move |cx: &mut App| {
+    #[cfg(target_os = "linux")]
+    let saved = xorg::prepare();
+    let application = gpui_platform::application();
+    #[cfg(target_os = "linux")]
+    saved.restore();
+    application.run(move |cx: &mut App| {
+        #[cfg(target_os = "linux")]
+        xorg::pump(cx);
         attention::dock_icon();
         cursor::install();
         text_element::install_symbols();

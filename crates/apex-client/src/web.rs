@@ -464,7 +464,10 @@ pub struct BarLook {
     pub ticks: Vec<(f32, f32, u32, f32)>,
 }
 
+#[cfg(target_os = "macos")]
 pub struct VeilLayer(*mut objc::runtime::Object);
+#[cfg(not(target_os = "macos"))]
+pub struct VeilLayer(#[allow(dead_code)] *mut std::ffi::c_void);
 
 impl Drop for VeilLayer {
     fn drop(&mut self) {
@@ -1334,7 +1337,15 @@ impl Webs {
             Page::Url { url, .. } => (url.to_string(), None),
             Page::Html { version, dir, .. } => (String::new(), Some((version, dir.to_string()))),
         };
-        match b.build_as_child(window) {
+        // on Linux wry wants the parent as an Xlib window
+        #[cfg(target_os = "linux")]
+        let built = match crate::xorg::Parent::of(window) {
+            Some(parent) => b.build_as_child(&parent),
+            None => Err(wry::Error::UnsupportedWindowHandle),
+        };
+        #[cfg(not(target_os = "linux"))]
+        let built = b.build_as_child(window);
+        match built {
             Ok(view) => {
                 let _ = view.set_visible(visible);
                 round_foot(&view);
@@ -2236,7 +2247,12 @@ pub fn native_mouse(window: &Window) -> Option<Point<Pixels>> {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
+pub fn native_mouse(window: &Window) -> Option<Point<Pixels>> {
+    crate::xorg::pointer(window)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 pub fn native_mouse(_window: &Window) -> Option<Point<Pixels>> {
     None
 }

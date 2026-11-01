@@ -14,8 +14,6 @@
 use std::collections::HashSet;
 
 use gpui::{App, Global};
-use objc::runtime::Object;
-use objc::{class, msg_send, sel, sel_impl};
 
 use apex_core::{Seq, WindowId};
 
@@ -118,6 +116,18 @@ pub fn queue(cx: &App) -> Vec<Note> {
     cx.try_global::<Queue>().map(|q| q.0.clone()).unwrap_or_default()
 }
 
+#[cfg(target_os = "macos")]
+pub use dock::{beep, dock_icon};
+#[cfg(target_os = "macos")]
+use dock::{badge, bounce};
+
+/// The Dock and its icon: AppKit's alone.
+#[cfg(target_os = "macos")]
+mod dock {
+use super::*;
+use objc::runtime::Object;
+use objc::{class, msg_send, sel, sel_impl};
+
 /// The space bunny, the sticker's own shape on nothing (`mac/space-bunny-1024.png`).
 const ICON: &[u8] = include_bytes!("../../../mac/space-bunny-1024.png");
 
@@ -140,7 +150,7 @@ pub fn dock_icon() {
 }
 
 /// `-[NSApplication requestUserAttention:]`, informational: one bounce.
-fn bounce() {
+pub(super) fn bounce() {
     const NS_INFORMATIONAL_REQUEST: isize = 10;
     unsafe {
         let app: *mut Object = msg_send![class!(NSApplication), sharedApplication];
@@ -179,7 +189,7 @@ struct Rect {
 /// icon as it is): over the bunny's top right, on a disc ringed in white,
 /// a blue dot -- or, its status asking for the user, its symbol, white
 /// on the stale gold.
-fn badge(mark: Option<Mark>) {
+pub(super) fn badge(mark: Option<Mark>) {
     let Some(mark) = mark else {
         dock_icon();
         return;
@@ -205,7 +215,7 @@ fn badge(mark: Option<Mark>) {
 
 /// The Dock icon with `mark` over it (`badge`), in the theme's `accent`
 /// and `stale`: an image of the caller's to release, or nil.
-fn marked(mark: Mark, accent: u32, stale: u32) -> *mut Object {
+pub(super) fn marked(mark: Mark, accent: u32, stale: u32) -> *mut Object {
     let color = |rgb: u32| -> *mut Object {
         let c = |s: u32| f64::from((rgb >> s) & 0xff) / 255.;
         // SAFETY: a plain AppKit class method; the colour is autoreleased
@@ -279,6 +289,21 @@ pub fn beep() {
 extern "C" {
     fn NSBeep();
 }
+}
+
+/// Elsewhere there is no Dock: no icon to set, nothing to bounce.
+#[cfg(not(target_os = "macos"))]
+pub fn dock_icon() {}
+#[cfg(not(target_os = "macos"))]
+fn bounce() {}
+#[cfg(not(target_os = "macos"))]
+fn badge(_: Option<Mark>) {}
+/// The bell, where there is no NSBeep.
+#[cfg(not(target_os = "macos"))]
+pub fn beep() {
+    use std::io::Write;
+    let _ = std::io::stderr().write_all(b"\x07");
+}
 
 #[cfg(test)]
 mod tests {
@@ -292,12 +317,13 @@ mod tests {
     /// to be looked at.
     #[test]
     #[ignore]
+    #[cfg(target_os = "macos")]
     fn the_dock_icons_marks_drawn() {
         use apex_core::status::{Kind, State};
         let Ok(out) = std::env::var("APEX_DOCK_OUT") else { return };
         let marks: [(&str, Mark); 6] = [("dot", None), ("done", Some((State::Done, None))), ("hand", Some((State::Blocked, Some(Kind::Permission)))), ("question", Some((State::Blocked, Some(Kind::Question)))), ("lock", Some((State::Blocked, Some(Kind::Auth)))), ("error", Some((State::Error, None)))];
         for (name, m) in marks {
-            let img = marked(m, 0x007D9C, 0xC79A00);
+            let img = dock::marked(m, 0x007D9C, 0xC79A00);
             assert!(!img.is_null());
             // SAFETY: AppKit, our image
             unsafe {
